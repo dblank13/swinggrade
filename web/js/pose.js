@@ -3,10 +3,12 @@
 // depend on third-party CDNs; if they are missing we fall back to the CDN.
 import {MP_TO_COCO} from "./draw.js";
 
+// Absolute URLs: import() resolves relative paths against this module (/js/),
+// while fetch() resolves them against the page, so "./vendor" meant two different places.
 const LOCAL = {
-  lib: "./vendor/tasks-vision/vision_bundle.mjs",
-  wasm: "./vendor/tasks-vision/wasm",
-  model: (v) => `./vendor/models/pose_landmarker_${v}.task`,
+  lib: new URL("/vendor/tasks-vision/vision_bundle.mjs", location.origin).href,
+  wasm: new URL("/vendor/tasks-vision/wasm", location.origin).href,
+  model: (v) => new URL(`/vendor/models/pose_landmarker_${v}.task`, location.origin).href,
 };
 const CDN = {
   lib: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs",
@@ -22,8 +24,16 @@ async function exists(url) {
 
 export async function getLandmarker(variant = "full") {
   if (landmarker && loadedVariant === variant) return landmarker;
-  const src = (await exists(LOCAL.lib)) && (await exists(LOCAL.model(variant))) ? LOCAL : CDN;
-  const vision = await import(src.lib);
+  let src = (await exists(LOCAL.lib)) && (await exists(LOCAL.model(variant))) ? LOCAL : CDN;
+  let vision;
+  try {
+    vision = await import(src.lib);
+  } catch (e) {
+    if (src === CDN) throw e;
+    console.error("Local pose library failed to load, trying CDN:", e);
+    src = CDN;
+    vision = await import(src.lib);
+  }
   const files = await vision.FilesetResolver.forVisionTasks(src.wasm);
   const opts = (delegate) => ({
     baseOptions: {modelAssetPath: src.model(variant), delegate},

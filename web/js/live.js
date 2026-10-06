@@ -3,6 +3,7 @@
 import {drawSkeleton, bodyFrame} from "./draw.js";
 import {getLandmarker, startCamera, stopCamera, runLoop} from "./pose.js";
 import {speak} from "./align.js";
+import {reportError} from "./report.js";
 import {drawGeometry, LiveGeometry, mirrorPts, loadTargets} from "./geometry.js";
 import {guessView} from "./pose.js";
 
@@ -42,6 +43,7 @@ async function submit(frames, video) {
     if (settingsRef.speak) speak(`${g.letter}. ${Math.round(g.score)}. ${cue ? cue.text.split(".")[0] : "Nice swing"}.`);
     if (onResultCb) onResultCb(j);
   } catch (e) {
+    reportError("live.grade", e);
     el("live-card").innerHTML = `<div class="grade F">?</div><div>${e.message}</div>`;
     el("live-card").classList.add("show");
   } finally {

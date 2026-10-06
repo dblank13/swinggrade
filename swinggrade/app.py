@@ -12,10 +12,11 @@ import threading
 import time
 import traceback
 import uuid
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -34,6 +35,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("swinggrade")
 
 app = FastAPI(title="SwingGrade", version="0.1.0")
+reqlog = logging.getLogger("swinggrade.http")
+
+
+@app.middleware("http")
+async def log_problems(request: Request, call_next):
+    """Make failures stand out in the container logs (uvicorn logs every request at INFO)."""
+    t0 = time.time()
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("UNHANDLED %s %s", request.method, request.url.path)
+        raise
+    if response.status_code >= 400 and request.url.path not in ("/robots.txt", "/favicon.ico"):
+        lvl = logging.ERROR if response.status_code >= 500 else logging.WARNING
+        reqlog.log(lvl, "HTTP %s %s %s (%.0f ms) ua=%s", response.status_code, request.method, request.url.path,
+                   (time.time() - t0) * 1000, request.headers.get("user-agent", "")[:80])
+    return response
 UPLOADS = config.WORK_DIR / "uploads"
 UPLOADS.mkdir(parents=True, exist_ok=True)
 JOBS: dict[str, dict] = {}
@@ -99,6 +117,7 @@ def _num(v):
 def _run_job(job_id: str, path: str, opts: dict):
     job = JOBS[job_id]
     job["state"] = "running"
+    log.info("job %s started (%s, %.1f MB, opts=%s)", job_id, Path(path).suffix, Path(path).stat().st_size / 1e6, opts)
 
     def progress(msg):
         job["progress"] = msg
@@ -115,7 +134,11 @@ def _run_job(job_id: str, path: str, opts: dict):
                                 "est_cost_usd": r.get("est_cost_usd"), "video": r.get("meta")}
         result["video_url"] = f"/api/jobs/{job_id}/video"
         job.update(state="done", result=result, progress="Done")
+        log.info("job %s done in %.1fs via %s: %s %s, %d frames @%s fps, grade %s", job_id, time.time() - t0,
+                 r.get("backend"), result["view"], result["handed"], len(r.get("t", [])), result["fps_effective"],
+                 result["tour"]["letter"])
     except SwingNotFound as exc:
+        log.warning("job %s: no swing found (%s)", job_id, exc)
         job.update(state="error", error=f"{exc} Make sure the clip contains one full swing with the whole body in view.")
     except Exception as exc:
         log.error("job %s failed: %s\n%s", job_id, exc, traceback.format_exc())
@@ -163,6 +186,24 @@ def job_video(job_id: str):
     return FileResponse(job["path"])
 
 
+class ClientLog(BaseModel):
+    where: str = ""
+    message: str = ""
+    stack: str = ""
+    page: str = ""
+    ua: str = ""
+    source: str | None = None
+    line: int | None = None
+
+
+@app.post("/api/client-log", status_code=204)
+def client_log(entry: ClientLog):
+    """Browser errors (phone camera, pose model, uploads) forwarded to the server log."""
+    log.error("client-error [%s] %s | page=%s src=%s:%s ua=%s%s", entry.where[:40], entry.message[:500],
+              entry.page[:80], entry.source, entry.line, entry.ua[:120],
+              ("\n" + entry.stack[:1500]) if entry.stack else "")
+
+
 # ------------------------------------------------------------------ live ----
 class LiveFrame(BaseModel):
     t: float
@@ -190,9 +231,8 @@ def analyze_live(body: LiveSwing):
                              height_cm=body.height_cm)
         r["processing"] = {"backend": "phone (MediaPipe in browser)", "est_cost_usd": 0.0}
         return r
-    except SwingNotFound as exc:
-        raise HTTPException(422, str(exc))
-    except ValueError as exc:
+    except (SwingNotFound, ValueError) as exc:
+        log.warning("live swing rejected: %s (%d frames)", exc, len(body.frames))
         raise HTTPException(422, str(exc))
 
 

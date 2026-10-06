@@ -1,3 +1,4 @@
+import {reportError} from "./report.js";
 import * as align from "./align.js";
 import * as live from "./live.js";
 import {drawSkeleton, drawCompare} from "./draw.js";
@@ -79,7 +80,7 @@ async function upload(file) {
       if (s.state === "done") { renderResult(s.result, localUrl); showTab("results"); status.textContent = ""; break; }
       if (s.state === "error") throw new Error(s.error);
     }
-  } catch (e) { status.textContent = "⚠ " + e.message; }
+  } catch (e) { status.textContent = "⚠ " + e.message; reportError("upload", e); }
   finally { el("u-go").disabled = false; refreshStatus(); }
 }
 
@@ -237,10 +238,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll("nav button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
   el("u-file").onchange = el("u-cam").onchange = (e) => { el("u-name").textContent = e.target.files[0]?.name || ""; el("u-go").dataset.src = e.target.id; };
   el("u-go").onclick = () => { const f = el(el("u-go").dataset.src || "u-file").files[0]; if (f) upload(f); else el("u-status").textContent = "Pick or record a clip first."; };
-  el("a-start").onclick = () => align.start(settings).catch((e) => el("align-status").textContent = "⚠ " + e.message);
+  el("a-start").onclick = () => align.start(settings).catch((e) => { el("align-status").textContent = "⚠ " + e.message; reportError("align.start", e); });
   el("a-stop").onclick = () => align.stop();
   el("a-level").onclick = () => align.enableLevel().catch((e) => alert(e.message));
-  el("l-start").onclick = () => live.start(settings, (r) => renderResult(r, null)).catch((e) => el("live-state").textContent = "⚠ " + e.message);
+  el("l-start").onclick = () => live.start(settings, (r) => renderResult(r, null)).catch((e) => { el("live-state").textContent = "⚠ " + e.message; reportError("live.start", e); });
   el("l-stop").onclick = () => live.stop();
   el("l-details").onclick = () => current && showTab("results");
   el("r-overlaycmp").onchange = () => { const on = el("r-events").querySelector("button.on"); if (on) selectEvent(on.dataset.ev); };
