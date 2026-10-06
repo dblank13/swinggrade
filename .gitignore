@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+work/
+bin/
+web/vendor/
+data/golfdb_videos/
+.pytest_cache/

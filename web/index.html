@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SwingGrade</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14281d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SwingGrade">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+<header>
+  <h1>⛳ SwingGrade</h1>
+  <nav>
+    <button data-tab="upload">Upload</button>
+    <button data-tab="align">Align</button>
+    <button data-tab="live">Live <sup>beta</sup></button>
+    <button data-tab="results">Results</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+</header>
+<p id="secure-warn" class="warn" hidden>⚠ Not on HTTPS: the camera (Align/Live) will not work. Open the tunnel https:// address instead.</p>
+
+<main>
+<section id="tab-upload" class="tab">
+  <h2>Grade a recorded swing</h2>
+  <p class="hint">Best results: phone on a tripod at hand height, Camera app in <b>Slo-mo</b> (120/240 fps), one swing, whole body plus club in frame. Trim the clip to just the swing in Photos.</p>
+  <div class="row">
+    <label class="btn">🎥 Record now<input id="u-cam" type="file" accept="video/*" capture="environment" hidden></label>
+    <label class="btn">📁 Choose clip<input id="u-file" type="file" accept="video/*" hidden></label>
+  </div>
+  <p id="u-name" class="meta"></p>
+  <label>Capture frame rate
+    <select id="u-fps">
+      <option value="">Auto-detect</option><option>30</option><option>60</option><option>120</option><option>240</option>
+    </select>
+  </label>
+  <p class="hint small">Auto works for original Slo-mo files. If a Slo-mo was exported as a normal 30 fps video, pick what it was recorded at.</p>
+  <button id="u-go" class="primary">Analyze swing</button>
+  <p id="u-status"></p>
+</section>
+
+<section id="tab-align" class="tab" hidden>
+  <h2>Line up the camera</h2>
+  <p class="hint">Match the orange ghost, then turn everything green. To watch from the tee, AirPlay/Chromecast-mirror your phone screen to a TV or tablet.</p>
+  <div class="row">
+    <button id="a-start" class="primary">Start camera</button><button id="a-stop">Stop</button><button id="a-level">Enable level</button>
+  </div>
+  <p id="align-status" class="meta"></p>
+  <p id="align-ghost-src" class="meta"></p>
+  <div class="stage">
+    <video id="align-video" playsinline muted></video>
+    <canvas id="align-canvas"></canvas>
+    <div id="align-banner" class="banner">✔ Aligned. Go to Upload or Live</div>
+    <span id="align-fps" class="fps"></span>
+  </div>
+  <ul id="align-checks" class="checks">
+    <li id="chk-body" class="pending">●<span>Whole body in frame</span></li>
+    <li id="chk-size" class="pending">●<span>Body size</span></li>
+    <li id="chk-head" class="pending">●<span>Room for the club</span></li>
+    <li id="chk-view" class="pending">●<span>Camera view</span></li>
+    <li id="chk-match" class="pending">●<span>Setup vs ghost</span></li>
+    <li id="chk-posture" class="pending">●<span>Posture (spine and knee angles)</span></li>
+    <li id="chk-level" class="pending">●<span>Phone level (tap Enable level)</span></li>
+  </ul>
+</section>
+
+<section id="tab-live" class="tab" hidden>
+  <h2>Live swing grading <sup>beta</sup></h2>
+  <p class="hint">Set up, hold still at address to arm, then swing. The grade is spoken and shown after you finish. The live camera runs at about 30 fps, so timing is rougher than with a Slo-mo upload.</p>
+  <div class="row"><button id="l-start" class="primary">Start live</button><button id="l-stop">Stop</button><button id="l-details">Full details</button></div>
+  <div class="stage">
+    <video id="live-video" playsinline muted></video>
+    <canvas id="live-canvas"></canvas>
+    <span id="live-state" class="chip">Stopped</span>
+    <span id="live-fps" class="fps"></span>
+    <div id="live-card" class="card"></div>
+  </div>
+  <p id="live-cam" class="meta"></p>
+</section>
+
+<section id="tab-results" class="tab" hidden>
+  <div id="r-summary"><p>No swing analysed yet.</p></div>
+  <h3>Swing</h3>
+  <div class="row small"><label class="inline"><input id="r-skel" type="checkbox" checked> skeleton</label><label class="inline"><input id="r-geo" type="checkbox" checked> swing geometry</label></div>
+  <p class="hint small">Lines show your spine angle vs address (dashed), head box, butt line (down-the-line) or sway lines (face-on), shoulder plane and hand path (orange back, cyan down). Green is fine, yellow is borderline, red needs work. Tap a phase to freeze it; tap the replay to play or pause.</p>
+  <div class="stage result">
+    <video id="r-video" playsinline controls muted hidden></video>
+    <canvas id="r-overlay"></canvas>
+  </div>
+  <div id="r-events" class="events"></div>
+  <h3>You vs pro <small id="r-evtime"></small></h3>
+  <label class="small"><input id="r-overlaycmp" type="checkbox"> overlay</label>
+  <canvas id="r-compare" width="360" height="300"></canvas>
+  <h3>Categories</h3>
+  <div id="r-cats"></div>
+  <h3>Geometry</h3>
+  <p class="hint small">2D estimates from one camera. "weak" metrics (rotation) are trends, not lab-grade angles. Tap a row for its source.</p>
+  <table id="r-table"></table>
+</section>
+
+<section id="tab-settings" class="tab" hidden>
+  <h2>Settings</h2>
+  <label>Camera view
+    <select id="s-view"><option value="dtl">Down-the-line (behind)</option><option value="fo">Face-on (front)</option><option value="auto">Auto-detect</option></select>
+  </label>
+  <label>Handedness
+    <select id="s-handed"><option value="right">Right-handed</option><option value="left">Left-handed</option><option value="auto">Auto-detect</option></select>
+  </label>
+  <label>Pro to mimic
+    <select id="s-pro"></select>
+  </label>
+  <p id="pro-info" class="hint small"></p>
+  <label>Your height in cm (optional, turns distances into cm)
+    <input id="s-height" type="number" min="100" max="230" inputmode="numeric">
+  </label>
+  <label>Camera
+    <select id="s-facing"><option value="environment">Back camera</option><option value="user">Front (selfie) camera</option></select>
+  </label>
+  <label>Pose model (phone)
+    <select id="s-model"><option value="full">Full (more accurate)</option><option value="lite">Lite (faster live mode)</option></select>
+  </label>
+  <label class="inline"><input id="s-mirror" type="checkbox"> Mirror the camera preview</label>
+  <label class="inline"><input id="s-speak" type="checkbox"> Speak results</label>
+  <label class="inline"><input id="s-geo" type="checkbox"> Draw swing geometry on the camera and playback</label>
+  <p class="hint small">Install as an app: Safari → Share → <b>Add to Home Screen</b>.</p>
+</section>
+</main>
+<footer id="status">…</footer>
+</body>
+</html>

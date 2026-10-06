@@ -1,0 +1,10 @@
+.git
+.github
+.venv
+work
+bin
+web/vendor
+data/golfdb_videos
+**/__pycache__
+.pytest_cache
+.env

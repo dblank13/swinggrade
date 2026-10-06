@@ -1,0 +1,9 @@
+{
+  "_about": "Generic right-handed address poses used as the alignment ghost when a pro has no extracted keypoints. COCO-17 order, torso units (mid-shoulder to mid-hip = 1), origin = mid-hip, y down. fo: golfer faces camera, target to the right of frame. dtl: camera behind the hands, golfer faces right. Forward bend set to 41.5 deg (elite mean, JSSM 2018).",
+  "fo": [[-0.06,-1.33],[0.0,-1.38],[-0.12,-1.38],[0.06,-1.35],[-0.18,-1.35],
+         [0.34,-1.02],[-0.44,-0.93],[0.20,-0.58],[-0.24,-0.56],[0.06,-0.22],[0.01,-0.20],
+         [0.19,0.0],[-0.19,0.0],[0.27,0.85],[-0.27,0.85],[0.33,1.72],[-0.33,1.72]],
+  "dtl": [[1.02,-0.98],[0.99,-1.02],[0.98,-1.01],[0.88,-1.0],[0.86,-0.99],
+          [0.68,-0.77],[0.63,-0.73],[0.80,-0.40],[0.72,-0.38],[0.86,-0.08],[0.84,-0.06],
+          [0.02,-0.01],[-0.02,0.01],[0.30,0.83],[0.26,0.85],[0.16,1.68],[0.12,1.70]]
+}
