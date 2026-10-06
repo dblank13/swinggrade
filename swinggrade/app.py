@@ -47,6 +47,10 @@ async def log_problems(request: Request, call_next):
     except Exception:
         log.exception("UNHANDLED %s %s", request.method, request.url.path)
         raise
+    path = request.url.path
+    if not path.startswith("/vendor/") and (path == "/" or path.endswith((".html", ".js", ".css", ".webmanifest")) or path.startswith("/api/")):
+        # app code changes on every deploy; make Cloudflare and phones revalidate instead of serving stale copies
+        response.headers["Cache-Control"] = "no-cache"
     if response.status_code >= 400 and request.url.path not in ("/robots.txt", "/favicon.ico"):
         lvl = logging.ERROR if response.status_code >= 500 else logging.WARNING
         reqlog.log(lvl, "HTTP %s %s %s (%.0f ms) ua=%s", response.status_code, request.method, request.url.path,
